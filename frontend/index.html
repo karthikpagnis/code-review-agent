@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Review Agent</title>
+  <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+    header {
+      background: #0078d4;
+      color: #fff;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    #auth-section { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn-primary { background: #0078d4; color: #fff; }
+    .btn-primary:hover { background: #005fa3; }
+    .btn-secondary { background: #fff; color: #0078d4; border: 1px solid #0078d4; }
+    .btn-secondary:hover { background: #e5f1fb; }
+    .btn-danger { background: #d13438; color: #fff; }
+    main { max-width: 860px; margin: 40px auto; padding: 0 24px; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #0078d4; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #444; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fafafa;
+    }
+    input[type="text"]:focus, textarea:focus { outline: 2px solid #0078d4; background: #fff; }
+    textarea { min-height: 160px; resize: vertical; font-family: "Consolas", monospace; font-size: 13px; }
+    .divider { text-align: center; color: #999; margin: 14px 0; font-size: 13px; }
+    #submit-btn { margin-top: 18px; width: 100%; padding: 12px; font-size: 15px; }
+    #status-msg { margin-top: 12px; font-size: 13px; color: #555; min-height: 20px; }
+    /* Report */
+    #report-card { display: none; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .summary-box {
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .summary-box .count { font-size: 32px; font-weight: 700; }
+    .summary-box .label { font-size: 12px; margin-top: 4px; }
+    .high   { background: #fde7e9; color: #a10e1a; }
+    .medium { background: #fff4ce; color: #7a4f00; }
+    .low    { background: #dff6dd; color: #135018; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 12px; background: #f0f0f0; border-bottom: 2px solid #ddd; }
+    td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:hover td { background: #f9f9f9; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge.high   { background: #fde7e9; color: #a10e1a; }
+    .badge.medium { background: #fff4ce; color: #7a4f00; }
+    .badge.low    { background: #dff6dd; color: #135018; }
+    .cat-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      background: #e5f1fb;
+      color: #004e8c;
+      font-weight: 500;
+    }
+    #login-prompt { text-align: center; padding: 48px; color: #666; }
+    #login-prompt p { margin-bottom: 16px; }
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #ccc;
+      border-top-color: #0078d4;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ Code Review Agent</h1>
+  <div id="auth-section">
+    <span id="user-label"></span>
+    <button id="login-btn"  class="btn-secondary" onclick="signIn()">Sign in with Microsoft</button>
+    <button id="logout-btn" class="btn-secondary" onclick="signOut()" style="display:none">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <!-- Login prompt shown when not authenticated -->
+  <div id="login-prompt" class="card">
+    <p>Sign in with your Microsoft account to start reviewing code.</p>
+    <button class="btn-primary" onclick="signIn()">Sign in with Microsoft</button>
+  </div>
+
+  <!-- Review form (hidden until logged in) -->
+  <div id="review-form" class="card" style="display:none">
+    <h2>Submit code for review</h2>
+
+    <label for="github-url">GitHub file URL (public repo)</label>
+    <input type="text" id="github-url"
+           placeholder="https://github.com/user/repo/blob/main/app.py" />
+
+    <div class="divider">— or paste code directly —</div>
+
+    <label for="code-snippet">Code snippet</label>
+    <textarea id="code-snippet" placeholder="def my_function():&#10;    ..."></textarea>
+
+    <label for="language" style="margin-top:14px">Language</label>
+    <select id="language">
+      <option value="python">Python</option>
+      <option value="javascript">JavaScript</option>
+      <option value="typescript">TypeScript</option>
+      <option value="java">Java</option>
+      <option value="go">Go</option>
+    </select>
+
+    <button id="submit-btn" class="btn-primary" onclick="submitReview()">
+      Run review
+    </button>
+    <div id="status-msg"></div>
+  </div>
+
+  <!-- Report output -->
+  <div id="report-card" class="card">
+    <h2>Review report</h2>
+    <div class="summary-grid">
+      <div class="summary-box high">
+        <div class="count" id="high-count">0</div>
+        <div class="label">High severity</div>
+      </div>
+      <div class="summary-box medium">
+        <div class="count" id="medium-count">0</div>
+        <div class="label">Medium severity</div>
+      </div>
+      <div class="summary-box low">
+        <div class="count" id="low-count">0</div>
+        <div class="label">Low severity</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Category</th>
+          <th>Issue</th>
+          <th>Description</th>
+          <th>Suggestion</th>
+        </tr>
+      </thead>
+      <tbody id="findings-body"></tbody>
+    </table>
+    <p id="blob-link" style="margin-top:14px;font-size:12px;color:#666;"></p>
+  </div>
+</main>
+
+<script>
+  // ── MSAL config — fill in your Entra ID values ──────────────────────────
+  const msalConfig = {
+    auth: {
+      clientId:    "YOUR_CLIENT_ID",            // from .env / Azure Portal
+      authority:   "https://login.microsoftonline.com/YOUR_TENANT_ID",
+      redirectUri: window.location.origin,
+    },
+    cache: { cacheLocation: "sessionStorage" }
+  };
+
+  const loginRequest = {
+    scopes: ["openid", "profile", "api://YOUR_CLIENT_ID/review.read"]
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let accessToken = null;
+
+  async function initAuth() {
+    await msalInstance.handleRedirectPromise();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      showLoggedIn(accounts[0]);
+      accessToken = await getToken(accounts[0]);
+    }
+  }
+
+  async function signIn() {
+    try {
+      const result = await msalInstance.loginPopup(loginRequest);
+      showLoggedIn(result.account);
+      accessToken = result.accessToken;
+    } catch (e) {
+      console.error("Login failed", e);
+    }
+  }
+
+  async function signOut() {
+    await msalInstance.logoutPopup();
+    accessToken = null;
+    document.getElementById("login-prompt").style.display = "block";
+    document.getElementById("review-form").style.display  = "none";
+    document.getElementById("report-card").style.display  = "none";
+    document.getElementById("user-label").textContent      = "";
+    document.getElementById("login-btn").style.display     = "inline-block";
+    document.getElementById("logout-btn").style.display    = "none";
+  }
+
+  async function getToken(account) {
+    const result = await msalInstance.acquireTokenSilent({
+      ...loginRequest, account
+    });
+    return result.accessToken;
+  }
+
+  function showLoggedIn(account) {
+    document.getElementById("login-prompt").style.display = "none";
+    document.getElementById("review-form").style.display  = "block";
+    document.getElementById("user-label").textContent     = account.username;
+    document.getElementById("login-btn").style.display    = "none";
+    document.getElementById("logout-btn").style.display   = "inline-block";
+  }
+
+  // ── Review submission ───────────────────────────────────────────────────
+  async function submitReview() {
+    const githubUrl  = document.getElementById("github-url").value.trim();
+    const snippet    = document.getElementById("code-snippet").value.trim();
+    const language   = document.getElementById("language").value;
+    const statusEl   = document.getElementById("status-msg");
+
+    if (!githubUrl && !snippet) {
+      statusEl.textContent = "Please provide a GitHub URL or paste some code.";
+      return;
+    }
+
+    statusEl.innerHTML = '<span class="spinner"></span> Running agents — this takes 20–40 seconds…';
+    document.getElementById("submit-btn").disabled = true;
+
+    try {
+      const body = { language };
+      if (githubUrl) body.github_url   = githubUrl;
+      else           body.code_snippet = snippet;
+
+      const res = await fetch("/api/review", {
+        method: "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || res.statusText);
+      }
+
+      const data = await res.json();
+      renderReport(data.report);
+      statusEl.textContent = "";
+    } catch (e) {
+      statusEl.textContent = `Error: ${e.message}`;
+    } finally {
+      document.getElementById("submit-btn").disabled = false;
+    }
+  }
+
+  function renderReport(report) {
+    document.getElementById("high-count").textContent   = report.high_count;
+    document.getElementById("medium-count").textContent = report.medium_count;
+    document.getElementById("low-count").textContent    = report.low_count;
+
+    const tbody = document.getElementById("findings-body");
+    tbody.innerHTML = "";
+
+    if (report.findings.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#555">No issues found — great code!</td></tr>';
+    } else {
+      for (const f of report.findings) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="badge ${f.severity}">${f.severity}</span></td>
+          <td><span class="cat-badge">${f.category}</span></td>
+          <td><strong>${f.type}</strong><br><code style="font-size:11px;color:#666">${escHtml(f.line_hint)}</code></td>
+          <td>${escHtml(f.description)}</td>
+          <td>${escHtml(f.suggestion)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    if (report.blob_url) {
+      document.getElementById("blob-link").innerHTML =
+        `Report saved: <a href="${report.blob_url}" target="_blank">${report.blob_url}</a>`;
+    }
+
+    document.getElementById("report-card").style.display = "block";
+    document.getElementById("report-card").scrollIntoView({ behavior: "smooth" });
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  initAuth();
+</script>
+</body>
+</html>
