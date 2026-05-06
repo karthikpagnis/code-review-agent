@@ -40,16 +40,20 @@ This gives you the `CLIENT_ID` and `TENANT_ID` for OAuth2.
 ### 2a — Copy your CLIENT_ID and TENANT_ID
 
 On the app registration page, you'll see:
+
 - **Application (client) ID**: Copy this → **CLIENT_ID**
 - **Directory (tenant) ID**: Copy this → **TENANT_ID**
 
-### 2b — Add Redirect URI
+### 2b — Add Redirect URI and Logout URL
 
 1. On the app page, go to **"Authentication"** (left sidebar)
 2. Click **"Add a platform"** (or **"+ Add URI"** button)
 3. In the dialog that appears, select **"Single-page application"** (the option with `www` icon)
    - **Redirect URIs**: `http://localhost:8000`
 4. Click **"Configure"** or **"Add"**
+5. **Scroll down** to find **"Front-channel logout URL"**
+   - Enter: `http://localhost:8000`
+   - Click **"Save"**
 
 ### 2c — Expose an API
 
