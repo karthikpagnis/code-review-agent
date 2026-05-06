@@ -21,7 +21,7 @@ Total time: ~50 minutes. Cost: well within the $100 student credit.
 4. Click **"Create"**
    - **Subscription**: Select your subscription
    - **Resource group name**: `code-review-rg`
-   - **Region**: `East US`
+   - **Region**: `West US` (or your preferred region — **avoid East US** for student subscriptions)
 5. Click **"Review + Create"** → **"Create"**
 
 ---
@@ -50,10 +50,7 @@ On the app registration page, you'll see:
 2. Click **"Add a platform"** (or **"+ Add URI"** button)
 3. In the dialog that appears, select **"Single-page application"** (the option with `www` icon)
    - **Redirect URIs**: `http://localhost:8000`
-4. Click **"Configure"** or **"Add"**
-5. **Scroll down** to find **"Front-channel logout URL"**
-   - Enter: `http://localhost:8000`
-   - Click **"Save"**
+4. Click **"Configure"**
 
 ### 2c — Expose an API
 
@@ -86,7 +83,14 @@ On the app registration page, you'll see:
    - **Subscription**: Select your subscription
    - **Resource group**: `code-review-rg`
    - **Name**: `code-review-project`
-   - **Region**: `East US`
+   - **Region**: ⚠️ **Try one of these regions** (in order of reliability):
+     - `West US`
+     - `West US 2`
+     - `West US 3`
+     - `North Europe`
+     - `Southeast Asia`
+     - `UK South`
+     - **NOT East US** (often restricted for student subscriptions)
 3. Click **"Review + Create"** → **"Create"**
 
 ### 3a — Get the Foundry endpoint
@@ -103,7 +107,8 @@ On the app registration page, you'll see:
    - **Deployment name**: `gpt-4o`
    - **Deployment configuration**: Standard (auto-scale)
 3. Click **"Deploy"** (this may take 5-10 minutes)
-4. Once deployed, note the deployment name: **FOUNDRY_MODEL** = `gpt-4o`
+4. Once deployed, you'll see status change to **"Succeeded"**
+5. Note the deployment name: **FOUNDRY_MODEL** = `gpt-4o`
 
 ---
 
@@ -113,7 +118,7 @@ On the app registration page, you'll see:
 2. Click **"Create"**
    - **Resource group**: `code-review-rg`
    - **Storage account name**: `codereviewstorage` (must be globally unique, lowercase, 3-24 chars)
-   - **Region**: `East US`
+   - **Region**: `West US` (same as your resource group)
    - **Performance**: `Standard`
    - **Redundancy**: `Locally-redundant storage (LRS)`
 3. Click **"Review + Create"** → **"Create"**
@@ -227,6 +232,13 @@ All billing stops immediately.
 ---
 
 ## Troubleshooting
+
+**"RequestDisallowedByAzure" error when creating AI Foundry?**
+Your subscription doesn't support AI Foundry in East US. Try these regions instead (in order):
+1. **West US** (most likely to work)
+2. **West US 2**
+3. **North Europe**
+4. Contact Azure Support if all regions fail
 
 **Can't find Foundry?**
 Search for "Azure AI Foundry" in the portal search bar.
