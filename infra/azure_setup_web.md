@@ -46,9 +46,10 @@ On the app registration page, you'll see:
 ### 2b — Add Redirect URI
 
 1. On the app page, go to **"Authentication"** (left sidebar)
-2. Click **"Add a platform"** → **"Single-page application"**
+2. Click **"Add a platform"** (or **"+ Add URI"** button)
+3. In the dialog that appears, select **"Single-page application"** (the option with `www` icon)
    - **Redirect URIs**: `http://localhost:8000`
-3. Click **"Configure"**
+4. Click **"Configure"** or **"Add"**
 
 ### 2c — Expose an API
 
